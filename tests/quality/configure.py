@@ -19,7 +19,7 @@ import mergedeep
 import requests
 import yaml
 from dataclass_wizard import DumpMeta, asdict, fromdict
-from yardstick.cli.config import (
+from logstick.cli.config import (
     Application,
     ResultSet,
     ScanMatrix,
@@ -66,7 +66,7 @@ class GrypeDB:
 
 @dataclass
 class Config:
-    yardstick: Yardstick = field(default_factory=Yardstick)
+    logstick: Yardstick = field(default_factory=Yardstick)
     grype_db: GrypeDB = field(default_factory=GrypeDB)
     tests: list[Test] = field(default_factory=list)
 
@@ -95,13 +95,13 @@ class Config:
 
         return cfg
 
-    def yardstick_application_config(
+    def logstick_application_config(
             self, test_configurations: list[Test]) -> Application:
         images = []
         for test in test_configurations:
             images += test.images
         return Application(
-            default_max_year=self.yardstick.default_max_year,
+            default_max_year=self.logstick.default_max_year,
             result_sets={
                 "pr_vs_latest_via_sbom":
                 ResultSet(
@@ -109,7 +109,7 @@ class Config:
                     "latest vulnerability data vs current vunnel data with latest grype tooling (via SBOM ingestion)",
                     matrix=ScanMatrix(
                         images=images,
-                        tools=self.yardstick.tools,
+                        tools=self.logstick.tools,
                     ),
                 ),
             },
@@ -156,7 +156,7 @@ class Config:
             if provider in cached_providers and provider not in providers_under_test_that_require_cache:
                 cached_providers.remove(provider)
 
-        return cached_providers, uncached_providers, self.yardstick_application_config(
+        return cached_providers, uncached_providers, self.logstick_application_config(
             tests)
 
 
@@ -171,13 +171,13 @@ class Config:
               default="config.yaml",
               help="override config path")
 @click.group(
-    help="Manage yardstick configuration that drives the quality gate testing")
+    help="Manage logstick configuration that drives the quality gate testing")
 @click.pass_context
 def cli(ctx, verbose: bool, config_path: str):
     # pylint: disable=redefined-outer-name, import-outside-toplevel
     import logging.config
 
-    # initialize yardstick based on the current configuration and
+    # initialize logstick based on the current configuration and
     # set the config object to click context to pass to subcommands
     ctx.obj = Config.load(config_path)
 
@@ -299,8 +299,8 @@ def read_config_state(path: str = ".state.yaml"):
         return ConfigurationState()
 
 
-def write_yardstick_config(cfg: Application, path: str = ".yardstick.yaml"):
-    logging.info(f"writing yardstick config to {path!r}")
+def write_logstick_config(cfg: Application, path: str = ".logstick.yaml"):
+    logging.info(f"writing logstick config to {path!r}")
 
     DumpMeta(key_transform="SNAKE", skip_defaults=True).bind_to(Application)
 
@@ -422,7 +422,7 @@ def validate_test_tool_versions(cfg: Config):
     if cfg.grype_db.version != "latest":
         reasons.append("grype-db version is not latest")
 
-    for idx, tool in enumerate(cfg.yardstick.tools):
+    for idx, tool in enumerate(cfg.logstick.tools):
         if tool.name != "grype":
             continue
 
@@ -447,15 +447,15 @@ def validate_test_tool_versions(cfg: Config):
 
 @cli.command(
     name="configure",
-    help="setup yardstick and grype-db configurations for building a DB")
+    help="setup logstick and grype-db configurations for building a DB")
 @click.argument("provider_names", metavar="PROVIDER", nargs=-1, required=True)
 @click.pass_obj
 def configure(cfg: Config, provider_names: list[str]):
     logging.info(
-        f"preparing yardstick and grype-db configurations with {provider_names!r}"
+        f"preparing logstick and grype-db configurations with {provider_names!r}"
     )
 
-    cached_providers, uncached_providers, yardstick_app_cfg = cfg.provider_data_source(
+    cached_providers, uncached_providers, logstick_app_cfg = cfg.provider_data_source(
         provider_names)
 
     logging.info(
@@ -470,7 +470,7 @@ def configure(cfg: Config, provider_names: list[str]):
     providers = set(cached_providers + uncached_providers)
 
     write_grype_db_config(providers)
-    write_yardstick_config(yardstick_app_cfg)
+    write_logstick_config(logstick_app_cfg)
 
     write_config_state(cached_providers, uncached_providers)
 

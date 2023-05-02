@@ -1,11 +1,11 @@
 GRYPE_DB_DATA_DIR = data
 GRYPE_DB_BUILD_DIR = build
 BIN_DIR = bin
-YARDSTICK_RESULT_DIR = .yardstick/result
-YARDSTICK_LABELS_DIR = .yardstick/labels
+YARDSTICK_RESULT_DIR = .logstick/result
+YARDSTICK_LABELS_DIR = .logstick/labels
 TEST_DB_ARCHIVE = $(GRYPE_DB_BUILD_DIR)/grype-db.tar.gz
 
-SBOM_STORE_TAG = md5-$(shell md5sum .yardstick.yaml | cut -d' ' -f1)
+SBOM_STORE_TAG = md5-$(shell md5sum .logstick.yaml | cut -d' ' -f1)
 SBOM_STORE_IMAGE = ghcr.io/nextlinux/grype/quality-test-sbom-store:$(SBOM_STORE_TAG)
 RESULT_SET = pr_vs_latest_via_sbom
 
@@ -52,7 +52,7 @@ validate-test-tool-versions: ## Pass/Fail to determine if we're using the produc
 	@poetry run python ./configure.py validate-test-tool-versions
 
 .PHONY: configure
-configure: ## write yardstick and grype configuration files relative to the given provider
+configure: ## write logstick and grype configuration files relative to the given provider
 	poetry run python ./configure.py configure $(provider)
 
 .PHONY: build-db
@@ -61,11 +61,11 @@ build-db:  ## Build a grype database for the given provider
 
 .PHONY: vulns
 vulns: ## Collect and store all grype results
-	poetry run yardstick -v result capture -r $(RESULT_SET)
+	poetry run logstick -v result capture -r $(RESULT_SET)
 
 .PHONY: sboms
 sboms: $(YARDSTICK_RESULT_DIR) clear-results ## Collect and store all syft results (deletes all existing results)
-	bash -c "make download-sboms || (yardstick -v result capture -r $(RESULT_SET) --only-producers)"
+	bash -c "make download-sboms || (logstick -v result capture -r $(RESULT_SET) --only-producers)"
 
 .PHONY: download-sboms
 download-sboms:
@@ -87,8 +87,8 @@ clean: clear-bin clear-results clear-db clear-data ## Clear all local data
 	find -iname "*.pyc" -delete
 
 .PHONY: clear-results
-clear-results: ## Clear all existing yardstick results
-	yardstick result clear
+clear-results: ## Clear all existing logstick results
+	logstick result clear
 
 .PHONY: clear-data
 clear-data: ## Delete existing vunnel data cache

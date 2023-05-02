@@ -435,14 +435,14 @@ Pick an image that has a good representation of the package types that your new 
 #### **4. In Vunnel: swap the tools to your Grype branch in `tests/quality/config.yaml`.**
 
 If you wanted to see PR quality gate checks pass with your specific Grype changes (if you have any) then you can update the
-`yardstick.tools[*]` entries for grype to use the a version that points to your fork (w.g. `your-fork-username/grype@main`).
+`logstick.tools[*]` entries for grype to use the a version that points to your fork (w.g. `your-fork-username/grype@main`).
 If you don't have any grype changes needed then you can skip this step.
 
 #### **5. In Vunnel: add new "vulnerability match labels" to annotate True and False positive findings with Grype.**
 
 In order to evaluate the quality of the new provider, we need to know what the expected results are. This is done by
 annotating Grype results with "True Positive" labels (good results) and "False Positive" labels (bad results). We'll use
-[Yardstick](github.com/nextlinux/yardstick) to do this:
+[Yardstick](github.com/nextlinux/logstick) to do this:
 
 ```bash
 # note: be certain you are in a "poetry shell" session
@@ -452,15 +452,15 @@ $ cd tests/quality
 $ make capture provider=<your-provider-name>
 
 # list your results
-$ yardstick result list | grep grype
+$ logstick result list | grep grype
 
 d415064e-2bf3-4a1d-bda6-9c3957f2f71a  docker.io/anc...  grype@v0.58.0             2023-03...
 75d1fe75-0890-4d89-a497-b1050826d9f6  docker.io/anc...  grype[custom-db]@bdcefd2  2023-03...
 
 # use the "grype[custom-db]" result UUID and explore the results and add labels to each entry
-$ yardstick label explore 75d1fe75-0890-4d89-a497-b1050826d9f6
+$ logstick label explore 75d1fe75-0890-4d89-a497-b1050826d9f6
 
-# You can use the yardstick TUI to label results:
+# You can use the logstick TUI to label results:
 # - use "T" to label a row as a True Positive
 # - use "F" to label a row as a False Positive
 # - Ctrl-Z to undo a label

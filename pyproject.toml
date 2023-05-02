@@ -76,7 +76,7 @@ mypy = "^1.1"
 radon = ">=5.1,<7.0"
 dunamai = "^1.15.0"
 ruff = "^0.0.254"
-yardstick = {git = "https://github.com/nextlinux/yardstick", rev = "v0.4.4"}
+logstick = {git = "https://github.com/nextlinux/logstick", rev = "v0.4.4"}
 tabulate = "0.9.0"
 
 [build-system]
@@ -136,7 +136,7 @@ exclude = '''
     | data
     | backup
     | tests/quality/vulnerability-match-labels
-    | tests/quality/.yardstick
+    | tests/quality/.logstick
     | tests/quality/data
     | tests/quality/build
     | tests/quality/bin

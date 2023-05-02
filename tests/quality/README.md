@@ -15,7 +15,7 @@ static set of reference container images. The kinds of comparisons made are:
 
 For information about required setup see: [Required setup](#required-setup).
 
-To capture raw tool output and store into the local `.yardstick` directory for
+To capture raw tool output and store into the local `.logstick` directory for
 further analysis:
 
 ```
@@ -63,7 +63,7 @@ between releases of grype.
 ## Assumptions
 
 1. **Comparing vulnerability results taken at different times is invalid**.
-   We leverage the yardstick result-set feature to capture all vulnerability
+   We leverage the logstick result-set feature to capture all vulnerability
    results at one time for a specific image and tool set. Why? If we use grype
    at version `a` on monday and grype at version `b` on tuesday and attempt to
    compare the results, if differences are found it will not be immediately
@@ -139,7 +139,7 @@ to keep in mind:
 
 ## Workflow
 
-One way of working is to simply run `yardstick` and `gate.py` in the `test/quality` directory.
+One way of working is to simply run `logstick` and `gate.py` in the `test/quality` directory.
 You will need to make sure the `vulnerabilty-match-labels` submodule has been initialized. This happens automatically
 for some `make` commands, but you can ensure this by `git submodule update --init`. After the submodule has been
 initialized, the match data from `vulnerabilty-match-labels` will be available locally.
@@ -187,10 +187,10 @@ Failed quality gate
 This tells us some important information: which package, version, and vulnerability had a difference;
 how it was previously labeled, and most importantly: the image we need to focus on (`docker.io/nextlinux/test_images@sha256:808f6cf3cf4473eb39ff9bb47ead639d2ed71255b75b9b140162b58c6102bcc9`).
 
-Using the SHA above, we can run `yardstick` to see which results are available:
+Using the SHA above, we can run `logstick` to see which results are available:
 
 ```shell
-$ yardstick result list --result-set pr_vs_latest_via_sbom | grep 808f6cf3cf4473eb39ff9bb47ead639d2ed71255b75b9b140162b58c6102bcc9
+$ logstick result list --result-set pr_vs_latest_via_sbom | grep 808f6cf3cf4473eb39ff9bb47ead639d2ed71255b75b9b140162b58c6102bcc9
 
 5bf0611b-183f-4525-a1ab-f268f62f48b6  docker.io/nextlinux/test_images:appstreams-centos-stream-8-1a287dd@sha256:808f6cf3cf4473eb39ff9bb47ead639d2ed71255b75b9b140162b58c6102bcc9          grype@v0.53.1              2022-12-09 20:49:56+00:00
 43a9650a-d5de-4687-b3ba-459105e32cb8  docker.io/nextlinux/test_images:appstreams-centos-stream-8-1a287dd@sha256:808f6cf3cf4473eb39ff9bb47ead639d2ed71255b75b9b140162b58c6102bcc9          grype@v0.53.1-15-gf29a32b  2022-12-09 20:49:53+00:00
@@ -198,10 +198,10 @@ $ yardstick result list --result-set pr_vs_latest_via_sbom | grep 808f6cf3cf4473
 ```
 
 We'll need to use the UUIDs to explore the labels, so copy the first UUID, which we can see was run against the last Grype release (`grype@v0.53.1`). Use the UUID to explore and edit the results with
-`yardstick label explore`:
+`logstick label explore`:
 
 ```shell
-yardstick label explore 5bf0611b-183f-4525-a1ab-f268f62f48b6
+logstick label explore 5bf0611b-183f-4525-a1ab-f268f62f48b6
 ```
 
 At this point we can use the TUI to explore and modify the match data, by deleting things or labeling as
@@ -215,7 +215,7 @@ how changes to the label data have affected the result:
 ./gate.py --image docker.io/nextlinux/test_images@sha256:808f6cf3cf4473eb39ff9bb47ead639d2ed71255b75b9b140162b58c6102bcc9
 ```
 
-After iterating on all the changes we need using `yardstick label explore`, we're now ready to commit changes. Since
+After iterating on all the changes we need using `logstick label explore`, we're now ready to commit changes. Since
 we're using `git submodules`, we need to do two steps:
 
 1. get the changes merged to the `vulnerability-match-labels` repository `main` branch
@@ -246,7 +246,7 @@ the quality check.
 
 In order to manage Python versions, [pyenv](https://github.com/pyenv/pyenv) can be used. (e.g. `brew install pyenv`)
 
-Both this project and `yardstick` require Python 3.10.
+Both this project and `logstick` require Python 3.10.
 
 Using `pyenv`, see which python versions are available, for example:
 
@@ -312,24 +312,24 @@ like this:
 (venv) user@HOST quality %
 ```
 
-Now you should be able to run both `yardstick` and `./gate.py`.
+Now you should be able to run both `logstick` and `./gate.py`.
 
 ## Troubleshooting
 
-As noted above, yardstick requires Python 3.10. If you try to run with an older version, such as
+As noted above, logstick requires Python 3.10. If you try to run with an older version, such as
 the default macOS 3.8 version, you will likely see an error similar to:
 
 ```
 Traceback (most recent call last):
   File "./vulnerability-match-labels/sboms.py", line 12, in <module>
-    import yardstick
-  File "/grype/test/quality/vulnerability-match-labels/venv/lib/python3.8/site-packages/yardstick/__init__.py", line 4, in <module>
+    import logstick
+  File "/grype/test/quality/vulnerability-match-labels/venv/lib/python3.8/site-packages/logstick/__init__.py", line 4, in <module>
     from . import arrange, artifact, capture, cli, comparison, label, store, tool, utils
-  File "/grype/test/quality/vulnerability-match-labels/venv/lib/python3.8/site-packages/yardstick/arrange.py", line 4, in <module>
-    from yardstick import artifact
-  File "/grype/test/quality/vulnerability-match-labels/venv/lib/python3.8/site-packages/yardstick/artifact.py", line 482, in <module>
+  File "/grype/test/quality/vulnerability-match-labels/venv/lib/python3.8/site-packages/logstick/arrange.py", line 4, in <module>
+    from logstick import artifact
+  File "/grype/test/quality/vulnerability-match-labels/venv/lib/python3.8/site-packages/logstick/artifact.py", line 482, in <module>
     class ResultSet:
-  File "/grype/test/quality/vulnerability-match-labels/venv/lib/python3.8/site-packages/yardstick/artifact.py", line 484, in ResultSet
+  File "/grype/test/quality/vulnerability-match-labels/venv/lib/python3.8/site-packages/logstick/artifact.py", line 484, in ResultSet
     state: list[ResultState] = field(default_factory=list)
 TypeError: 'type' object is not subscriptable
 ```

@@ -6,14 +6,14 @@ from dataclasses import InitVar, dataclass, field
 from typing import Any
 
 import click
-import yardstick
+import logstick
 from tabulate import tabulate
-from yardstick import artifact, comparison, store, utils
-from yardstick.cli import config, display
+from logstick import artifact, comparison, store, utils
+from logstick.cli import config, display
 
-# see the .yardstick.yaml configuration for details
+# see the .logstick.yaml configuration for details
 default_result_set = "pr_vs_latest_via_sbom"
-yardstick.utils.grype_db.raise_on_failure(False)
+logstick.utils.grype_db.raise_on_failure(False)
 
 
 @dataclass
@@ -36,12 +36,18 @@ class Gate:
         # - fail when current F1 score drops below last release F1 score (or F1 score is indeterminate)
         # - fail when indeterminate % > 10%
         # - fail when there is a rise in FNs
-        latest_release_tool, current_tool = guess_tool_orientation(label_comparison_stats.tools)
+        latest_release_tool, current_tool = guess_tool_orientation(
+            label_comparison_stats.tools)
 
         latest_release_comparisons_by_image = {
-            comp.config.image: comp for comp in label_comparisons if comp.config.tool == latest_release_tool
+            comp.config.image: comp
+            for comp in label_comparisons
+            if comp.config.tool == latest_release_tool
         }
-        current_comparisons_by_image = {comp.config.image: comp for comp in label_comparisons if comp.config.tool == current_tool}
+        current_comparisons_by_image = {
+            comp.config.image: comp
+            for comp in label_comparisons if comp.config.tool == current_tool
+        }
 
         # this doesn't make sense in all cases, especially if we aren't failing any other gates against the current changes
         # we might want this in the future to protect against no labels for images in an edge case, but that reason is not
@@ -53,7 +59,8 @@ class Gate:
         #         )
 
         for image, comp in current_comparisons_by_image.items():
-            latest_f1_score = latest_release_comparisons_by_image[image].summary.f1_score
+            latest_f1_score = latest_release_comparisons_by_image[
+                image].summary.f1_score
             current_f1_score = comp.summary.f1_score
             if current_f1_score < latest_f1_score:
                 reasons.append(
@@ -65,7 +72,8 @@ class Gate:
                     f"current indeterminate matches % is greater than 10%: {bcolors.BOLD+bcolors.UNDERLINE}current={comp.summary.indeterminate_percent:0.2f}%{bcolors.RESET} image={image}",
                 )
 
-            latest_fns = latest_release_comparisons_by_image[image].summary.false_negatives
+            latest_fns = latest_release_comparisons_by_image[
+                image].summary.false_negatives
             current_fns = comp.summary.false_negatives
             if current_fns > latest_fns:
                 reasons.append(
@@ -117,7 +125,9 @@ def show_results_used(results: list[artifact.ScanResult]):
         branch = "├──"
         if idx == len(results) - 1:
             branch = "└──"
-        print(f"    {branch} {result.ID} : {result.config.tool_name}@{result.config.tool_version} against {result.config.image}")
+        print(
+            f"    {branch} {result.ID} : {result.config.tool_name}@{result.config.tool_version} against {result.config.image}"
+        )
     print()
 
 
@@ -125,7 +135,7 @@ def get_namespaces_from_db() -> list[str]:
     # open sqlite db at build/vulnerability.db and get a list of unique values in the namespace column
     import sqlite3
 
-    # TODO: this is hardcoded, but should be configurable or key off of yardstick config
+    # TODO: this is hardcoded, but should be configurable or key off of logstick config
     conn = sqlite3.connect("build/vulnerability.db")
     c = conn.cursor()
     c.execute("SELECT DISTINCT namespace FROM vulnerability")
@@ -140,11 +150,14 @@ def validate(
     verbosity: int,
     label_entries: list[artifact.LabelEntry] | None = None,
 ):
-    print(f"{bcolors.HEADER}{bcolors.BOLD}Validating with {result_set!r}", bcolors.RESET, "\n")
+    print(f"{bcolors.HEADER}{bcolors.BOLD}Validating with {result_set!r}",
+          bcolors.RESET, "\n")
     result_set_obj = store.result_set.load(name=result_set)
 
     namespaces = get_namespaces_from_db()
-    print(f"{bcolors.HEADER}{bcolors.BOLD}Restricting results to the following DB namespaces:", bcolors.RESET)
+    print(
+        f"{bcolors.HEADER}{bcolors.BOLD}Restricting results to the following DB namespaces:",
+        bcolors.RESET)
     for namespace in namespaces:
         print(f" - {namespace}")
 
@@ -175,7 +188,9 @@ def validate(
 
         failure = not gate.passed()
         if failure:
-            print(f"{bcolors.FAIL}{bcolors.BOLD}Failed quality gate{bcolors.RESET}")
+            print(
+                f"{bcolors.FAIL}{bcolors.BOLD}Failed quality gate{bcolors.RESET}"
+            )
         for reason in gate.reasons:
             print(f"   - {reason}")
 
@@ -187,10 +202,12 @@ def validate(
     return ret
 
 
-def matches_filter_by_namespaces(matches: list[artifact.Match], namespaces) -> list[artifact.Match]:
+def matches_filter_by_namespaces(matches: list[artifact.Match],
+                                 namespaces) -> list[artifact.Match]:
     ret = []
     for match in matches:
-        if utils.dig(match.fullentry, "vulnerability", "namespace") in namespaces:
+        if utils.dig(match.fullentry, "vulnerability",
+                     "namespace") in namespaces:
             ret.append(match)
     return ret
 
@@ -203,6 +220,7 @@ def validate_image(
     namespaces: list[str],
     label_entries: list[artifact.LabelEntry] | None = None,
 ):
+
     def matches_filter(matches):
         return matches_filter_by_namespaces(matches, namespaces)
 
@@ -211,7 +229,7 @@ def validate_image(
     # - list out all individual match differences
 
     print(f"{bcolors.HEADER}Running relative comparison...", bcolors.RESET)
-    relative_comparison = yardstick.compare_results(
+    relative_comparison = logstick.compare_results(
         descriptions=descriptions,
         year_max_limit=cfg.default_max_year,
         matches_filter=matches_filter,
@@ -221,19 +239,24 @@ def validate_image(
     # show the relative comparison results
     if verbosity > 0:
         details = verbosity > 1
-        display.preserved_matches(relative_comparison, details=details, summary=True, common=False)
+        display.preserved_matches(relative_comparison,
+                                  details=details,
+                                  summary=True,
+                                  common=False)
         print()
 
     # bail if there are no differences found
-    if not always_run_label_comparison and not sum(
-        [len(relative_comparison.unique[result.ID]) for result in relative_comparison.results],
-    ):
+    if not always_run_label_comparison and not sum([
+            len(relative_comparison.unique[result.ID])
+            for result in relative_comparison.results
+    ], ):
         print("no differences found between tool results")
         return Gate(None, None)
 
     # do a label comparison
-    print(f"{bcolors.HEADER}Running comparison against labels...", bcolors.RESET)
-    results, label_entries, comparisons_by_result_id, stats_by_image_tool_pair = yardstick.compare_results_against_labels(
+    print(f"{bcolors.HEADER}Running comparison against labels...",
+          bcolors.RESET)
+    results, label_entries, comparisons_by_result_id, stats_by_image_tool_pair = logstick.compare_results_against_labels(
         descriptions=descriptions,
         year_max_limit=cfg.default_max_year,
         label_entries=label_entries,
@@ -251,7 +274,8 @@ def validate_image(
             show_summaries=True,
         )
 
-    latest_release_tool, current_tool = guess_tool_orientation([r.config.tool for r in results])
+    latest_release_tool, current_tool = guess_tool_orientation(
+        [r.config.tool for r in results])
 
     # show the relative comparison unique differences paired up with label conclusions (TP/FP/FN/TN/Unknown)
     all_rows: list[list[Any]] = []
@@ -289,38 +313,38 @@ def validate_image(
                     color = bcolors.FAIL
                     commentary = "(this is a new FP 😱)"
 
-            all_rows.append(
-                [
-                    f"{color}{result.config.tool} ONLY{bcolors.RESET}",
-                    f"{color}{unique_match.package.name}@{unique_match.package.version}{bcolors.RESET}",
-                    f"{color}{unique_match.vulnerability.id}{bcolors.RESET}",
-                    f"{color}{label}{bcolors.RESET}",
-                    f"{commentary}",
-                ],
-            )
+            all_rows.append([
+                f"{color}{result.config.tool} ONLY{bcolors.RESET}",
+                f"{color}{unique_match.package.name}@{unique_match.package.version}{bcolors.RESET}",
+                f"{color}{unique_match.vulnerability.id}{bcolors.RESET}",
+                f"{color}{label}{bcolors.RESET}",
+                f"{commentary}",
+            ], )
 
     def escape_ansi(line):
         ansi_escape = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
         return ansi_escape.sub("", line)
 
     # sort but don't consider ansi escape codes
-    all_rows = sorted(all_rows, key=lambda x: escape_ansi(str(x[0] + x[1] + x[2] + x[3])))
+    all_rows = sorted(
+        all_rows, key=lambda x: escape_ansi(str(x[0] + x[1] + x[2] + x[3])))
     if len(all_rows) == 0:
         print("No differences found between tooling (with labels)")
     else:
         print("Match differences between tooling (with labels):")
         indent = "   "
         print(
-            indent
-            + tabulate(
-                [["TOOL PARTITION", "PACKAGE", "VULNERABILITY", "LABEL", "COMMENTARY"], *all_rows],
+            indent + tabulate(
+                [[
+                    "TOOL PARTITION", "PACKAGE", "VULNERABILITY", "LABEL",
+                    "COMMENTARY"
+                ], *all_rows],
                 tablefmt="plain",
-            ).replace("\n", "\n" + indent)
-            + "\n",
-        )
+            ).replace("\n", "\n" + indent) + "\n", )
 
     # populate the quality gate with data that can evaluate pass/fail conditions
-    return Gate(label_comparisons=comparisons_by_result_id.values(), label_comparison_stats=stats_by_image_tool_pair)
+    return Gate(label_comparisons=comparisons_by_result_id.values(),
+                label_comparison_stats=stats_by_image_tool_pair)
 
 
 @click.command()
@@ -329,7 +353,8 @@ def validate_image(
     "-i",
     "images",
     multiple=True,
-    help="filter down to one or more images to validate with (don't use the full result set)",
+    help=
+    "filter down to one or more images to validate with (don't use the full result set)",
 )
 @click.option(
     "--label-comparison",
@@ -338,10 +363,21 @@ def validate_image(
     is_flag=True,
     help="run label comparison irregardless of relative comparison results",
 )
-@click.option("--breakdown-by-ecosystem", "-e", is_flag=True, help="show label comparison results broken down by ecosystem")
-@click.option("--verbose", "-v", "verbosity", count=True, help="show details of all comparisons")
-@click.option("--result-set", "-r", default=default_result_set, help="the result set to use for the quality gate")
-def main(images: list[str], always_run_label_comparison: bool, breakdown_by_ecosystem: bool, verbosity: int, result_set: str):
+@click.option("--breakdown-by-ecosystem",
+              "-e",
+              is_flag=True,
+              help="show label comparison results broken down by ecosystem")
+@click.option("--verbose",
+              "-v",
+              "verbosity",
+              count=True,
+              help="show details of all comparisons")
+@click.option("--result-set",
+              "-r",
+              default=default_result_set,
+              help="the result set to use for the quality gate")
+def main(images: list[str], always_run_label_comparison: bool,
+         breakdown_by_ecosystem: bool, verbosity: int, result_set: str):
     cfg = config.load()
     setup_logging(verbosity)
 
@@ -354,10 +390,13 @@ def main(images: list[str], always_run_label_comparison: bool, breakdown_by_ecos
         images = sorted(images)
 
     print("Loading label entries...", end=" ")
-    label_entries = store.labels.load_for_image(images, year_max_limit=cfg.default_max_year)
+    label_entries = store.labels.load_for_image(
+        images, year_max_limit=cfg.default_max_year)
     print(f"done! {len(label_entries)} entries loaded")
 
-    result_sets = [result_set]  # today only one result set is supported, but more can be added
+    result_sets = [
+        result_set
+    ]  # today only one result set is supported, but more can be added
     gates = []
     for result_set in result_sets:
         gates.extend(
@@ -368,13 +407,14 @@ def main(images: list[str], always_run_label_comparison: bool, breakdown_by_ecos
                 always_run_label_comparison=always_run_label_comparison,
                 verbosity=verbosity,
                 label_entries=label_entries,
-            ),
-        )
+            ), )
         print()
 
         if breakdown_by_ecosystem:
-            print(f"{bcolors.HEADER}Breaking down label comparison by ecosystem performance...", bcolors.RESET)
-            results_by_image, label_entries, stats = yardstick.compare_results_against_labels_by_ecosystem(
+            print(
+                f"{bcolors.HEADER}Breaking down label comparison by ecosystem performance...",
+                bcolors.RESET)
+            results_by_image, label_entries, stats = logstick.compare_results_against_labels_by_ecosystem(
                 result_set=result_set,
                 year_max_limit=cfg.default_max_year,
                 label_entries=label_entries,
@@ -395,10 +435,13 @@ def main(images: list[str], always_run_label_comparison: bool, breakdown_by_ecos
 
     if failure:
         print()
-        print(f"{bcolors.FAIL}{bcolors.BOLD}Quality gate FAILED{bcolors.RESET}")
+        print(
+            f"{bcolors.FAIL}{bcolors.BOLD}Quality gate FAILED{bcolors.RESET}")
         sys.exit(1)
     else:
-        print(f"{bcolors.OKGREEN}{bcolors.BOLD}Quality gate passed!{bcolors.RESET}")
+        print(
+            f"{bcolors.OKGREEN}{bcolors.BOLD}Quality gate passed!{bcolors.RESET}"
+        )
 
 
 def setup_logging(verbosity: int):
