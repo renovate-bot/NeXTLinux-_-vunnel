@@ -1,0 +1,152 @@
+name: "Release"
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: tag the latest commit on main with the given version (prefixed with v)
+        required: true
+
+jobs:
+
+  quality-gate:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check if tag already exists
+        # note: this will fail if the tag already exists
+        run: |
+          git tag ${{ github.event.inputs.version }}
+
+      # we don't want to release commits that have been pushed and tagged, but not necessarily merged onto main
+      - name: Ensure tagged commit is on main
+        run: |
+          echo "Tag: ${GITHUB_REF##*/}"
+          git fetch origin main
+          git merge-base --is-ancestor ${GITHUB_REF##*/} origin/main && echo "${GITHUB_REF##*/} is a commit on main!"
+
+      - name: Check validation results
+        uses: fountainhead/action-wait-for-check@v1.1.0
+        id: validations
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # This check name is defined as the github action job name (in .github/workflows/validations.yaml)
+          checkName: "Validations"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check nightly quality gate results
+        uses: fountainhead/action-wait-for-check@v1.1.0
+        id: nightly-quality-gate
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # This check name is defined as the github action job name (in .github/workflows/nightly-quality-gate.yaml)
+          checkName: "Nightly-Quality-Gate"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # If there is no result in 10 seconds, assume it hasn't run yet
+          timeoutSeconds: 10
+          intervalSeconds: 3
+
+      - name: Release quality gate
+        if: steps.validations.conclusion != 'success' || steps.nightly-quality-gate.conclusion != 'success'
+        run: |
+          echo "Validations Status: ${{ steps.validations.conclusion }}"
+          echo "Nightly Quality Gate Status: ${{ steps.nightly-quality-gate.conclusion }}"
+          false
+
+  tag:
+    needs:
+      - quality-gate
+    runs-on: ubuntu-20.04
+    environment: release
+    permissions:
+      contents: write
+      packages: write
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # in order to properly resolve the version from git
+          fetch-depth: 0
+
+      - name: Tag release
+        run: |
+          git tag ${{ github.event.inputs.version }}
+          git push origin --tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-pypi:
+    needs:
+      - tag
+    runs-on: ubuntu-20.04
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # in order to properly resolve the version from git
+          fetch-depth: 0
+
+      - name: Bootstrap environment
+        uses: ./.github/actions/bootstrap
+
+      - name: Publish to PyPI
+        run: make ci-publish-pypi
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.VUNNEL_PYPI_TOKEN }}
+
+  release-docker:
+    needs:
+      - tag
+    runs-on: ubuntu-20.04
+    environment: release
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # in order to properly resolve the version from git
+          fetch-depth: 0
+
+      - name: Bootstrap environment
+        uses: ./.github/actions/bootstrap
+
+      - name: Login to ghcr.io
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | oras login ghcr.io --username ${{ github.actor }} --password-stdin
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io --username ${{ github.actor }} --password-stdin
+
+      - name: Promote commit image to release
+        run: |
+          make ci-promote-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release-github:
+    needs:
+      - tag
+    runs-on: ubuntu-20.04
+    environment: release
+    permissions:
+      contents: write
+      packages: write
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # in order to properly resolve the version from git
+          fetch-depth: 0
+
+      - name: Bootstrap environment
+        uses: ./.github/actions/bootstrap
+
+      - name: Create github release
+        run: |
+          make changelog
+          gh release create ${{ github.event.inputs.version }} -F CHANGELOG.md -t ${{ github.event.inputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
