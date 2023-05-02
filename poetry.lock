@@ -1740,7 +1740,7 @@ files = [
 ]
 
 [[package]]
-name = "logstick"
+name = "yardstick"
 version = "0.3.4.post30.dev0+bd77dfc"
 description = "Tool for comparing the results from vulnerability scanners"
 category = "dev"
@@ -1767,7 +1767,7 @@ tabulate = "^0.9.0"
 
 [package.source]
 type = "git"
-url = "https://github.com/nextlinux/logstick"
+url = "https://github.com/anchore/yardstick"
 reference = "v0.4.4"
 resolved_reference = "b8ca41acfb6ebef194e994f94ecc065f43b8f26c"
 

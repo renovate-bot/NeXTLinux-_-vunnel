@@ -6,14 +6,14 @@ from dataclasses import InitVar, dataclass, field
 from typing import Any
 
 import click
-import logstick
+import yardstick
 from tabulate import tabulate
-from logstick import artifact, comparison, store, utils
-from logstick.cli import config, display
+from yardstick import artifact, comparison, store, utils
+from yardstick.cli import config, display
 
-# see the .logstick.yaml configuration for details
+# see the .yardstick.yaml configuration for details
 default_result_set = "pr_vs_latest_via_sbom"
-logstick.utils.grype_db.raise_on_failure(False)
+yardstick.utils.grype_db.raise_on_failure(False)
 
 
 @dataclass
@@ -135,7 +135,7 @@ def get_namespaces_from_db() -> list[str]:
     # open sqlite db at build/vulnerability.db and get a list of unique values in the namespace column
     import sqlite3
 
-    # TODO: this is hardcoded, but should be configurable or key off of logstick config
+    # TODO: this is hardcoded, but should be configurable or key off of yardstick config
     conn = sqlite3.connect("build/vulnerability.db")
     c = conn.cursor()
     c.execute("SELECT DISTINCT namespace FROM vulnerability")
@@ -229,7 +229,7 @@ def validate_image(
     # - list out all individual match differences
 
     print(f"{bcolors.HEADER}Running relative comparison...", bcolors.RESET)
-    relative_comparison = logstick.compare_results(
+    relative_comparison = yardstick.compare_results(
         descriptions=descriptions,
         year_max_limit=cfg.default_max_year,
         matches_filter=matches_filter,
@@ -256,7 +256,7 @@ def validate_image(
     # do a label comparison
     print(f"{bcolors.HEADER}Running comparison against labels...",
           bcolors.RESET)
-    results, label_entries, comparisons_by_result_id, stats_by_image_tool_pair = logstick.compare_results_against_labels(
+    results, label_entries, comparisons_by_result_id, stats_by_image_tool_pair = yardstick.compare_results_against_labels(
         descriptions=descriptions,
         year_max_limit=cfg.default_max_year,
         label_entries=label_entries,
@@ -414,7 +414,7 @@ def main(images: list[str], always_run_label_comparison: bool,
             print(
                 f"{bcolors.HEADER}Breaking down label comparison by ecosystem performance...",
                 bcolors.RESET)
-            results_by_image, label_entries, stats = logstick.compare_results_against_labels_by_ecosystem(
+            results_by_image, label_entries, stats = yardstick.compare_results_against_labels_by_ecosystem(
                 result_set=result_set,
                 year_max_limit=cfg.default_max_year,
                 label_entries=label_entries,
